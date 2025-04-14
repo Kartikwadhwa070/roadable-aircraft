@@ -78,12 +78,19 @@ public class FlyingCarController : MonoBehaviour
     void HandleMovement()
     {
         float h = Input.GetAxis("Horizontal");
-        float v = Input.GetAxis("Vertical");   
+        float v = Input.GetAxis("Vertical");
 
-        Vector3 moveDirection = (transform.forward * v + transform.right * h).normalized;
+        Vector3 moveInput = new Vector3(h, 0, v);
 
-        rb.AddForce(moveDirection * moveSpeed, ForceMode.Acceleration);
+        if (moveInput.magnitude > 0.1f)
+        {
+            Vector3 moveDirection = (transform.forward * v + transform.right * h).normalized;
+            rb.AddForce(moveDirection * moveSpeed, ForceMode.Acceleration);
+            Quaternion targetRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * .5f);
+        }
     }
+
 
     void HandleTilt()
     {
