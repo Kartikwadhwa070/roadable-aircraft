@@ -14,13 +14,19 @@ public class FlyingCarController : MonoBehaviour
     public float strafeSpeed = 7f;
     public float liftSpeed = 5f;
 
+    [Header("Tilt Settings")]
+    public float tiltAmount = 15f;
+    public float tiltSpeed = 5f;
+
     private Rigidbody rb;
     private float hoverTimer;
+    private Animator animator;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         rb.useGravity = false;
+        animator = GetComponent<Animator>();
     }
 
     void FixedUpdate()
@@ -41,7 +47,6 @@ public class FlyingCarController : MonoBehaviour
 
             float forceAmount = (targetHeight - distanceToGround) * levitationForce;
 
-            // Sinusoidal up-down motion
             hoverTimer += Time.fixedDeltaTime * hoverOscillationSpeed;
             float oscillation = Mathf.Sin(hoverTimer) * hoverOscillationAmount;
 
@@ -54,12 +59,21 @@ public class FlyingCarController : MonoBehaviour
         float verticalInput = 0f;
 
         if (Input.GetKey(KeyCode.LeftShift))
+        {
             verticalInput = 1f;
-        else if (Input.GetKey(KeyCode.LeftControl))
+            if (animator) animator.SetBool("IsFlyingUp", true);
+        }
+        else
+        {
+            if (animator) animator.SetBool("IsFlyingUp", false);
+        }
+
+        if (Input.GetKey(KeyCode.LeftControl))
             verticalInput = -1f;
 
         rb.AddForce(Vector3.up * verticalInput * liftSpeed, ForceMode.Acceleration);
     }
+
 
     void HandleMovement()
     {
@@ -69,5 +83,15 @@ public class FlyingCarController : MonoBehaviour
         Vector3 moveDirection = (transform.forward * v + transform.right * h).normalized;
 
         rb.AddForce(moveDirection * moveSpeed, ForceMode.Acceleration);
+    }
+
+    void HandleTilt()
+    {
+        float h = Input.GetAxis("Horizontal"); 
+
+        float targetZRotation = -h * tiltAmount;
+        Quaternion targetRotation = Quaternion.Euler(transform.eulerAngles.x, transform.eulerAngles.y, targetZRotation);
+
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * tiltSpeed);
     }
 }
