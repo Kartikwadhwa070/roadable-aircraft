@@ -2,32 +2,42 @@ using UnityEngine;
 
 public class ObjectMagnet : MonoBehaviour
 {
-    public Transform rayOrigin;            
+    [Header("Setup")]
+    public Transform rayOrigin;
     public float rayDistance = 10f;
-    public Transform attachPoint;
-    public GameObject ropePrefab;
-    public float pullSpeed = 5f;
     public LayerMask pickupLayer;
 
-    private GameObject currentTarget;
-    private GameObject currentRope;
-    private bool isPulling;
+    [Header("Attachment")]
+    public Transform attachPoint;
+    public float pullSpeed = 5f;
+
+    [Header("Rope Visual")]
+    public GameObject ropePrefab;
+    private GameObject ropeInstance;
+
+    private GameObject targetObject;
+    private Rigidbody targetRb;
+
+    private bool isPulling = false;
+    private bool isAttached = false;
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.G) && currentTarget == null)
+        if (Input.GetKeyDown(KeyCode.G))
         {
-            TryPickup();
+            if (!targetObject)
+                TryPickup();
         }
 
-        if (isPulling && currentTarget)
+        if (isPulling)
         {
-            PullObject();
+            PullTarget();
+            UpdateRope();
         }
 
         if (Input.GetKeyDown(KeyCode.R))
         {
-            ReleaseObject();
+            ReleaseTarget();
         }
     }
 
@@ -35,65 +45,102 @@ public class ObjectMagnet : MonoBehaviour
     {
         if (Physics.Raycast(rayOrigin.position, Vector3.down, out RaycastHit hit, rayDistance, pickupLayer))
         {
-            currentTarget = hit.collider.gameObject;
+            targetObject = hit.collider.gameObject;
+            targetRb = targetObject.GetComponent<Rigidbody>();
 
-            currentRope = Instantiate(ropePrefab, attachPoint.position, Quaternion.identity);
-            currentRope.transform.SetParent(attachPoint);
-            UpdateRopeTransform();
+            if (!targetRb) return;
 
+            targetRb.useGravity = false;
+            targetRb.linearVelocity = Vector3.zero;
+
+            CreateRope();
             isPulling = true;
-            Rigidbody rb = currentTarget.GetComponent<Rigidbody>();
-            if (rb) rb.useGravity = false;
         }
     }
 
-    void PullObject()
+    void PullTarget()
     {
-        currentTarget.transform.position = Vector3.MoveTowards(
-            currentTarget.transform.position,
-            attachPoint.position,
-            pullSpeed * Time.deltaTime
-        );
+        if (!targetObject) return;
 
-        UpdateRopeTransform();
+        Vector3 direction = attachPoint.position - targetObject.transform.position;
+        float distance = direction.magnitude;
 
-        float dist = Vector3.Distance(currentTarget.transform.position, attachPoint.position);
-        if (dist < 0.2f)
+        if (distance > 0.1f)
         {
-            currentTarget.transform.SetParent(attachPoint);
-            isPulling = false;
+            targetObject.transform.position = Vector3.MoveTowards(
+                targetObject.transform.position,
+                attachPoint.position,
+                pullSpeed * Time.deltaTime
+            );
+        }
+        else
+        {
+            AttachTarget();
         }
     }
 
-    void ReleaseObject()
+    void AttachTarget()
     {
-        if (currentTarget)
-        {
-            currentTarget.transform.SetParent(null);
-            Rigidbody rb = currentTarget.GetComponent<Rigidbody>();
-            if (rb) rb.useGravity = true;
+        if (!targetObject) return;
 
-            currentTarget = null;
-        }
-
-        if (currentRope)
-        {
-            Destroy(currentRope);
-            currentRope = null;
-        }
-
+        targetObject.transform.SetParent(attachPoint);
+        targetObject.transform.localPosition = Vector3.zero;
         isPulling = false;
+        isAttached = true;
+
+        if (targetRb) targetRb.isKinematic = true;
     }
 
-    void UpdateRopeTransform()
+    void ReleaseTarget()
     {
-        if (!currentTarget || !currentRope) return;
+        if (!targetObject) return;
 
-        Vector3 dir = currentTarget.transform.position - attachPoint.position;
-        float dist = dir.magnitude;
+        targetObject.transform.SetParent(null);
 
-        currentRope.transform.position = attachPoint.position + dir / 2f;
-        currentRope.transform.rotation = Quaternion.LookRotation(dir);
-        currentRope.transform.localScale = new Vector3(0.1f, 0.1f, dist);
+        if (targetRb)
+        {
+            targetRb.useGravity = true;
+            targetRb.isKinematic = false;
+        }
+
+        DestroyRope();
+
+        targetObject = null;
+        targetRb = null;
+        isPulling = false;
+        isAttached = false;
+    }
+
+    void CreateRope()
+    {
+        if (ropePrefab && !ropeInstance)
+        {
+            ropeInstance = Instantiate(ropePrefab, attachPoint.position, Quaternion.identity);
+            ropeInstance.transform.SetParent(null); // world space
+        }
+    }
+
+    void UpdateRope()
+    {
+        if (!ropeInstance || !targetObject) return;
+
+        Vector3 start = attachPoint.position;
+        Vector3 end = targetObject.transform.position;
+        Vector3 midPoint = (start + end) / 2f;
+        Vector3 direction = end - start;
+        float length = direction.magnitude;
+
+        ropeInstance.transform.position = midPoint;
+        ropeInstance.transform.rotation = Quaternion.LookRotation(direction);
+        ropeInstance.transform.localScale = new Vector3(0.1f, 0.1f, length);
+    }
+
+    void DestroyRope()
+    {
+        if (ropeInstance)
+        {
+            Destroy(ropeInstance);
+            ropeInstance = null;
+        }
     }
 }
