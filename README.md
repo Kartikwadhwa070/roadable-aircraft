@@ -36,3 +36,5 @@ Drop Object | R
 Camera Rotate | Mouse
 
 ![image](https://github.com/user-attachments/assets/56f2bc8e-fe75-4bc5-8206-5d6eb557a48b)
+![image](https://github.com/user-attachments/assets/6952c06b-bd38-47f1-a8e9-23b6fa97d6a5)
+![image](https://github.com/user-attachments/assets/4a0d82b2-4ef9-4ac5-ae86-c936cee61dc0)
